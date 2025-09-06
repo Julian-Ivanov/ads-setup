@@ -1,51 +1,71 @@
-name: Deploy to Azure App Service
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy Node.js app to Azure Web App - ads-setupgenerierung
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-    
+    permissions:
+      id-token: write # Required for requesting the JWT
+      contents: read # Required for actions/checkout
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Install root deps for build only
+        run: |
+          npm ci
+      
+      - name: Build frontend
+        run: |
+          npm run build
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_ADMIN_USERNAME: ${{ secrets.VITE_ADMIN_USERNAME }}
+          VITE_ADMIN_PASSWORD: ${{ secrets.VITE_ADMIN_PASSWORD }}
 
-    - name: Install frontend dependencies
-      run: |
-        cd /home/runner/work/Ads-Prozess/Ads-Prozess
-        npm ci
+      - name: Install backend production dependencies
+        run: |
+          cd backend
+          npm ci --omit=dev
+          cd -
 
-    - name: Build frontend
-      run: |
-        cd /home/runner/work/Ads-Prozess/Ads-Prozess
-        npm run build
-      env:
-        VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
-        VITE_ADMIN_USERNAME: ${{ secrets.VITE_ADMIN_USERNAME }}
-        VITE_ADMIN_PASSWORD: ${{ secrets.VITE_ADMIN_PASSWORD }}
+      - name: Prepare minimal deploy package (no node_modules)
+        run: |
+          rm -rf deploy
+          mkdir -p deploy/backend
+          cp backend/server.js deploy/backend/
+          cp backend/package.json deploy/backend/
+          if [ -f backend/package-lock.json ]; then cp backend/package-lock.json deploy/backend/; fi
+          cp -R backend/node_modules deploy/backend/node_modules
+          cp -R dist deploy/dist
+          echo "Contents of deploy:" && find deploy -maxdepth 3 -type f | sed 's/^/  /'
 
-    - name: Install backend dependencies
-      run: |
-        cd /home/runner/work/Ads-Prozess/Ads-Prozess/backend
-        npm ci
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_FD9407ACE60F43CD87589A4D0AD23F7F }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_FB280119EF4F49C7B06B5FE863EBB58C }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_55B9E03475794231B36A0450CEFDBDA4 }}
 
-    - name: Login to Azure
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-    - name: Deploy to Azure App Service
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-        package: .
+      - name: Deploy directly to Azure Web App (no GitHub artifacts)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'ads-setup'
+          slot-name: 'Production'
+          package: ./deploy
+          startup-command: 'node backend/server.js'
