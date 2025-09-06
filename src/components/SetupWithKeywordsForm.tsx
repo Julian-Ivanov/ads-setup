@@ -247,7 +247,7 @@ const SetupWithKeywordsForm = ({ onBack, resumeUrl, onSubmit, onValidationError 
               type="file"
               accept=".xlsx"
               onChange={handleFileChange}
-              className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="h-12 file:mr-4 file:py-3 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
             {selectedFile && (
               <div className="flex items-center gap-2 text-sm text-green-600">

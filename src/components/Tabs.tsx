@@ -9,6 +9,7 @@ import SetupWithoutKeywordsForm from './SetupWithoutKeywordsForm';
 import SetupWithKeywordsForm from './SetupWithKeywordsForm';
 import AdsSetupLoading from './AdsSetupLoading';
 import AdsSetupFinalLoading from './AdsSetupFinalLoading';
+import AdsSetupWithTemplateLoading from './AdsSetupWithTemplateLoading';
 import KeywordKontrolle from './KeywordKontrolle';
 import AdsSetupComplete from './AdsSetupComplete';
 import WorkflowSelection from './WorkflowSelection';
@@ -103,8 +104,10 @@ const Tabs = () => {
   };
 
   const startPolling = () => {
+    console.log('Starting polling for getFeedback with resumeUrl:', resumeUrl);
     const pollInterval = setInterval(async () => {
       try {
+        console.log('Polling attempt for getFeedback...');
         const response = await fetch(`${API_BASE_URL}/api/check-outline`, {
           method: 'POST',
           headers: {
@@ -118,20 +121,24 @@ const Tabs = () => {
           console.log('Polling response:', data);
           
           if (data.getFeedback) {
-            console.log('Received getFeedback:', data.getFeedback);
+            console.log('✅ Received getFeedback:', data.getFeedback);
             setGoogleSheetsUrl(data.getFeedback);
             setWorkflowState('feedback');
             clearInterval(pollInterval);
+          } else {
+            console.log('No getFeedback yet, continuing to poll...');
           }
         } else {
           console.log('Polling response not ok:', response.status);
+          const errorText = await response.text();
+          console.log('Error response:', errorText);
         }
       } catch (error) {
         console.error('Error polling for feedback:', error);
       }
     }, 2000); // Poll every 2 seconds
 
-    // Stop polling after 10 minutes and show error
+    // Stop polling after 15 minutes and show error
     setTimeout(() => {
       clearInterval(pollInterval);
       if (workflowState === 'loading') {
@@ -142,7 +149,7 @@ const Tabs = () => {
         });
         setWorkflowState('form');
       }
-    }, 600000);
+    }, 900000);
   };
 
   const handleContinue = () => {
@@ -183,7 +190,7 @@ const Tabs = () => {
       }
     }, 2000); // Poll every 2 seconds
 
-    // Stop polling after 10 minutes and show error
+    // Stop polling after 15 minutes and show error
     setTimeout(() => {
       clearInterval(pollInterval);
       if (workflowState === 'finalLoading') {
@@ -194,7 +201,7 @@ const Tabs = () => {
         });
         setWorkflowState('form');
       }
-    }, 600000);
+    }, 900000);
   };
 
   // Show workflow selection if no workflow is selected
@@ -280,7 +287,7 @@ const Tabs = () => {
                   />
                 )}
                 {workflowState === 'loading' && (
-                  <AdsSetupLoading 
+                  <AdsSetupWithTemplateLoading 
                     onBack={handleBackToSelection} 
                     resumeUrl={resumeUrl}
                   />

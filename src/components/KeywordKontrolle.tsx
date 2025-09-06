@@ -89,13 +89,15 @@ const KeywordKontrolle = ({ onContinue, googleSheetsUrl, resumeUrl }: KeywordKon
             <p className="text-lg font-semibold text-green-900 mb-6">
               Google Sheets Dokument
             </p>
-            <Button
-              onClick={handleOpenGoogleSheets}
-              className="flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white px-10 py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
-            >
-              <ExternalLink className="h-5 w-5" />
-              Google Sheets öffnen
-            </Button>
+            <div className="flex justify-center">
+              <Button
+                onClick={handleOpenGoogleSheets}
+                className="flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white px-12 py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+              >
+                <ExternalLink className="h-5 w-5" />
+                Google Sheets öffnen
+              </Button>
+            </div>
           </div>
         </div>
         
