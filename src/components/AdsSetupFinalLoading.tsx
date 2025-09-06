@@ -48,17 +48,6 @@ const AdsSetupFinalLoading = ({ onBack, resumeUrl }: AdsSetupFinalLoadingProps) 
           </ul>
         </div>
         
-        {/* Back Button */}
-        <div className="flex justify-center">
-          <Button
-            variant="outline"
-            onClick={onBack}
-            className="flex items-center gap-2 hover:bg-gray-50"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Zurück
-          </Button>
-        </div>
       </div>
     </div>
   );

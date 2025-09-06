@@ -131,7 +131,7 @@ const Tabs = () => {
       }
     }, 2000); // Poll every 2 seconds
 
-    // Stop polling after 5 minutes and show error
+    // Stop polling after 10 minutes and show error
     setTimeout(() => {
       clearInterval(pollInterval);
       if (workflowState === 'loading') {
@@ -142,7 +142,7 @@ const Tabs = () => {
         });
         setWorkflowState('form');
       }
-    }, 300000);
+    }, 600000);
   };
 
   const handleContinue = () => {
@@ -151,8 +151,10 @@ const Tabs = () => {
   };
 
   const startFinalPolling = () => {
+    console.log('Starting final polling with resumeUrl:', resumeUrl);
     const pollInterval = setInterval(async () => {
       try {
+        console.log('Final polling attempt with resumeUrl:', resumeUrl);
         const response = await fetch(`${API_BASE_URL}/api/check-outline`, {
           method: 'POST',
           headers: {
@@ -173,13 +175,15 @@ const Tabs = () => {
           }
         } else {
           console.log('Final polling response not ok:', response.status);
+          const errorText = await response.text();
+          console.log('Error response:', errorText);
         }
       } catch (error) {
         console.error('Error polling for final response:', error);
       }
     }, 2000); // Poll every 2 seconds
 
-    // Stop polling after 5 minutes and show error
+    // Stop polling after 10 minutes and show error
     setTimeout(() => {
       clearInterval(pollInterval);
       if (workflowState === 'finalLoading') {
@@ -190,7 +194,7 @@ const Tabs = () => {
         });
         setWorkflowState('form');
       }
-    }, 300000);
+    }, 600000);
   };
 
   // Show workflow selection if no workflow is selected

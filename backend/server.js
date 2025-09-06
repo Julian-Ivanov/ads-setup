@@ -296,12 +296,13 @@ app.post('/api/check-outline', async (req, res) => {
     }
 
     console.log('Checking for content response from:', resumeUrl);
+    console.log('Current storage keys:', Array.from(outlineStorage.keys()));
 
     // Check if content is stored for this resume URL
     const storedContent = outlineStorage.get(resumeUrl);
     
     if (storedContent) {
-      console.log('Found content for resume URL:', resumeUrl, 'Type:', storedContent.type);
+      console.log('Found content for resume URL:', resumeUrl, 'Type:', storedContent.type, 'Content:', storedContent.content);
       // Remove the content from storage after retrieving it
       outlineStorage.delete(resumeUrl);
       
@@ -310,6 +311,7 @@ app.post('/api/check-outline', async (req, res) => {
       } else if (storedContent.type === 'article') {
         res.json({ article: storedContent.content });
       } else if (storedContent.type === 'end') {
+        console.log('Returning end response:', storedContent.content);
         res.json({ end: storedContent.content });
       } else if (storedContent.type === 'getFeedback') {
         console.log('Returning getFeedback:', storedContent.content);
@@ -317,7 +319,6 @@ app.post('/api/check-outline', async (req, res) => {
       }
     } else {
       console.log('No content found for resume URL:', resumeUrl);
-      console.log('Current storage keys:', Array.from(outlineStorage.keys()));
       res.json({ outline: null, article: null, getFeedback: null, end: null });
     }
   } catch (error) {
