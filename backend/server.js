@@ -33,29 +33,34 @@ app.get('/health', (req, res) => {
 // Endpoint for n8n to store outline, article, end, or getFeedback response (called by n8n webhook)
 app.post('/api/store-outline', (req, res) => {
   try {
+    console.log('📥 Received request to /api/store-outline');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
     const { resumeUrl, outline, article, end, getFeedback } = req.body;
     
     if (!resumeUrl || (!outline && !article && !end && !getFeedback)) {
+      console.log('❌ Missing required fields');
       return res.status(400).json({ error: 'Resume URL and either outline, article, end, or getFeedback are required' });
     }
 
     if (outline) {
-      console.log('Storing outline for resume URL:', resumeUrl);
+      console.log('📝 Storing outline for resume URL:', resumeUrl);
       outlineStorage.set(resumeUrl, { type: 'outline', content: outline });
     } else if (article) {
-      console.log('Storing article for resume URL:', resumeUrl);
+      console.log('📄 Storing article for resume URL:', resumeUrl);
       outlineStorage.set(resumeUrl, { type: 'article', content: article });
     } else if (end) {
-      console.log('Storing end response for resume URL:', resumeUrl);
+      console.log('🏁 Storing end response for resume URL:', resumeUrl);
       outlineStorage.set(resumeUrl, { type: 'end', content: end });
     } else if (getFeedback) {
-      console.log('Storing getFeedback for resume URL:', resumeUrl, 'URL:', getFeedback);
+      console.log('🔄 Storing getFeedback for resume URL:', resumeUrl, 'URL:', getFeedback);
       outlineStorage.set(resumeUrl, { type: 'getFeedback', content: getFeedback });
     }
     
+    console.log('✅ Content stored successfully');
     res.json({ success: true, message: 'Content stored successfully' });
   } catch (error) {
-    console.error('Error storing content:', error);
+    console.error('❌ Error storing content:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -179,21 +184,23 @@ app.post('/api/submit-form', upload.single('file'), async (req, res) => {
 
     if (response.ok) {
       const responseData = await response.json();
-      console.log('Form submitted successfully, n8n response:', responseData);
+      console.log('✅ Form submitted successfully, n8n response:', JSON.stringify(responseData, null, 2));
       
       // Check if n8n returned content directly and store it
       if (responseData.outline) {
-        console.log('Storing outline from direct response:', responseData.outline);
+        console.log('📝 Storing outline from direct response:', responseData.outline);
         outlineStorage.set(resumeUrl, { type: 'outline', content: responseData.outline });
       } else if (responseData.article) {
-        console.log('Storing article from direct response:', responseData.article);
+        console.log('📄 Storing article from direct response:', responseData.article);
         outlineStorage.set(resumeUrl, { type: 'article', content: responseData.article });
       } else if (responseData.end) {
-        console.log('Storing end response from direct response:', responseData.end);
+        console.log('🏁 Storing end response from direct response:', responseData.end);
         outlineStorage.set(resumeUrl, { type: 'end', content: responseData.end });
       } else if (responseData.getFeedback) {
-        console.log('Storing getFeedback from direct response:', responseData.getFeedback);
+        console.log('🔄 Storing getFeedback from direct response:', responseData.getFeedback);
         outlineStorage.set(resumeUrl, { type: 'getFeedback', content: responseData.getFeedback });
+      } else {
+        console.log('⚠️ n8n did not return any content in the response');
       }
       
       res.json(responseData);
