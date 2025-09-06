@@ -36,15 +36,15 @@ const AdsSetupLoading = ({ onBack, resumeUrl }: AdsSetupLoadingProps) => {
           <ul className="text-blue-800 space-y-2 text-left">
             <li className="flex items-start">
               <span className="text-blue-600 mr-3">•</span>
-              Anzeigentitel und -beschreibungen werden erstellt
+              Keywords werden mit DataForSEO erweitert
             </li>
             <li className="flex items-start">
               <span className="text-blue-600 mr-3">•</span>
-              Performance Max wird erstellt
+              Google Sheets Dokument wird erstellt
             </li>
             <li className="flex items-start">
               <span className="text-blue-600 mr-3">•</span>
-              Erweiterungen werden erstellt
+              Anzeigengruppen mit Keywords werden eingefügt
             </li>
           </ul>
         </div>

@@ -76,6 +76,15 @@ const SetupWithoutKeywordsForm = ({ onBack, resumeUrl, onSubmit, onValidationErr
     }));
   };
 
+  const handleNumberInputChange = (field: string, value: string) => {
+    // Only allow positive numbers and empty string
+    const numericValue = value.replace(/[^0-9]/g, '');
+    setFormData(prev => ({
+      ...prev,
+      [field]: numericValue
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -325,8 +334,9 @@ const SetupWithoutKeywordsForm = ({ onBack, resumeUrl, onSubmit, onValidationErr
             id="keywordRecherchelimit"
             type="number"
             value={formData.keywordRecherchelimit}
-            onChange={(e) => handleInputChange('keywordRecherchelimit', e.target.value)}
+            onChange={(e) => handleNumberInputChange('keywordRecherchelimit', e.target.value)}
             placeholder="Extra Keywords pro gegebenem Keyword"
+            min="0"
             required
           />
         </div>
@@ -340,8 +350,9 @@ const SetupWithoutKeywordsForm = ({ onBack, resumeUrl, onSubmit, onValidationErr
             id="tagesbudget"
             type="number"
             value={formData.tagesbudget}
-            onChange={(e) => handleInputChange('tagesbudget', e.target.value)}
+            onChange={(e) => handleNumberInputChange('tagesbudget', e.target.value)}
             placeholder="200"
+            min="0"
             required
           />
         </div>
