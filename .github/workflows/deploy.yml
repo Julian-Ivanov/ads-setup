@@ -69,3 +69,5 @@ jobs:
           slot-name: 'Production'
           package: ./deploy
           startup-command: 'node backend/server.js'
+          app-settings: |
+            NODE_ENV=production
