@@ -1,0 +1,47 @@
+name: Deploy to Azure App Service
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install frontend dependencies
+      run: |
+        cd /home/runner/work/Ads-Prozess/Ads-Prozess
+        npm ci
+
+    - name: Build frontend
+      run: |
+        cd /home/runner/work/Ads-Prozess/Ads-Prozess
+        npm run build
+      env:
+        VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        VITE_ADMIN_USERNAME: ${{ secrets.VITE_ADMIN_USERNAME }}
+        VITE_ADMIN_PASSWORD: ${{ secrets.VITE_ADMIN_PASSWORD }}
+
+    - name: Install backend dependencies
+      run: |
+        cd /home/runner/work/Ads-Prozess/Ads-Prozess/backend
+        npm ci
+
+    - name: Deploy to Azure App Service
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: .
