@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -13,17 +13,34 @@ import AdsSetupWithTemplateLoading from './AdsSetupWithTemplateLoading';
 import KeywordKontrolle from './KeywordKontrolle';
 import AdsSetupComplete from './AdsSetupComplete';
 import WorkflowSelection from './WorkflowSelection';
+import ErrorScreen from './ErrorScreen';
 import { API_BASE_URL } from '@/config/api';
 
 const Tabs = () => {
   const [selectedWorkflow, setSelectedWorkflow] = useState<string | null>(null);
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
-  const [workflowState, setWorkflowState] = useState<'form' | 'loading' | 'feedback' | 'finalLoading' | 'complete'>('form');
+  const [workflowState, setWorkflowState] = useState<'form' | 'loading' | 'feedback' | 'finalLoading' | 'complete' | 'error'>('form');
   const [googleSheetsUrl, setGoogleSheetsUrl] = useState<string | null>(null);
   const [finalGoogleSheetsUrl, setFinalGoogleSheetsUrl] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const workflowStateRef = useRef(workflowState);
   const { logout } = useAuth();
   const { toast } = useToast();
+
+  // Update ref when workflow state changes
+  useEffect(() => {
+    workflowStateRef.current = workflowState;
+  }, [workflowState]);
+
+  // Cleanup polling on component unmount
+  useEffect(() => {
+    return () => {
+      cleanupPolling();
+    };
+  }, []);
 
   const handleSelectWorkflow = async (workflow: string) => {
     console.log('handleSelectWorkflow called with:', workflow);
@@ -56,22 +73,13 @@ const Tabs = () => {
         } else {
           const errorText = await response.text();
           console.error('Response error:', errorText);
-          toast({
-            title: "Fehler beim Initialisieren",
-            description: `Status: ${response.status}. Du kannst trotzdem fortfahren.`,
-            variant: "destructive",
-          });
-          throw new Error(`Failed to initialize workflow: ${response.status}`);
+          handleError(`Workflow-Initialisierung fehlgeschlagen (Status: ${response.status})`);
+          return;
         }
       } catch (error) {
         console.error('Error initializing workflow:', error);
-        toast({
-          title: "Verbindungsfehler",
-          description: "Workflow konnte nicht initialisiert werden. Du kannst trotzdem fortfahren.",
-          variant: "destructive",
-        });
-        // Still allow the user to proceed with the form
-        setSelectedWorkflow(workflow);
+        handleError(`Verbindungsfehler beim Initialisieren des Workflows: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+        return;
       } finally {
         setIsInitializing(false);
       }
@@ -81,10 +89,36 @@ const Tabs = () => {
   };
 
   const handleBackToSelection = () => {
+    cleanupPolling(); // Stop all background processes
     setSelectedWorkflow(null);
     setWorkflowState('form');
     setGoogleSheetsUrl(null);
     setFinalGoogleSheetsUrl(null);
+    setErrorMessage(null);
+  };
+
+  const cleanupPolling = () => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
+    }
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      setTimeoutId(null);
+    }
+  };
+
+  const handleError = (error: string) => {
+    console.error('Error occurred:', error);
+    cleanupPolling(); // Stop all background processes
+    setErrorMessage(error);
+    setWorkflowState('error');
+  };
+
+  const handleRetry = () => {
+    cleanupPolling(); // Ensure no polling is running
+    setWorkflowState('form');
+    setErrorMessage(null);
   };
 
   const handleFormSubmit = () => {
@@ -105,7 +139,18 @@ const Tabs = () => {
 
   const startPolling = () => {
     console.log('Starting polling for getFeedback with resumeUrl:', resumeUrl);
+    
+    // Clean up any existing polling first
+    cleanupPolling();
+    
     const pollInterval = setInterval(async () => {
+      // Check if we should still be polling (workflow state might have changed)
+      if (workflowStateRef.current !== 'loading') {
+        console.log('Workflow state changed, stopping polling');
+        cleanupPolling();
+        return;
+      }
+
       try {
         console.log('Polling attempt for getFeedback...');
         const response = await fetch(`${API_BASE_URL}/api/check-outline`, {
@@ -124,7 +169,7 @@ const Tabs = () => {
             console.log('✅ Received getFeedback:', data.getFeedback);
             setGoogleSheetsUrl(data.getFeedback);
             setWorkflowState('feedback');
-            clearInterval(pollInterval);
+            cleanupPolling(); // Stop polling when we get the result
           } else {
             console.log('No getFeedback yet, continuing to poll...');
           }
@@ -135,21 +180,21 @@ const Tabs = () => {
         }
       } catch (error) {
         console.error('Error polling for feedback:', error);
+        handleError(`Fehler beim Polling: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
       }
     }, 2000); // Poll every 2 seconds
 
+    setPollingInterval(pollInterval);
+
     // Stop polling after 15 minutes and show error
-    setTimeout(() => {
-      clearInterval(pollInterval);
+    const timeout = setTimeout(() => {
+      cleanupPolling();
       if (workflowState === 'loading') {
-        toast({
-          title: "Timeout",
-          description: "Die Anfrage hat zu lange gedauert. Bitte versuche es erneut.",
-          variant: "destructive",
-        });
-        setWorkflowState('form');
+        handleError("Timeout: Die Anfrage hat zu lange gedauert. Bitte versuche es erneut.");
       }
     }, 900000);
+    
+    setTimeoutId(timeout);
   };
 
   const handleContinue = () => {
@@ -159,7 +204,18 @@ const Tabs = () => {
 
   const startFinalPolling = () => {
     console.log('Starting final polling with resumeUrl:', resumeUrl);
+    
+    // Clean up any existing polling first
+    cleanupPolling();
+    
     const pollInterval = setInterval(async () => {
+      // Check if we should still be polling (workflow state might have changed)
+      if (workflowStateRef.current !== 'finalLoading') {
+        console.log('Workflow state changed, stopping final polling');
+        cleanupPolling();
+        return;
+      }
+
       try {
         console.log('Final polling attempt with resumeUrl:', resumeUrl);
         const response = await fetch(`${API_BASE_URL}/api/check-outline`, {
@@ -178,7 +234,7 @@ const Tabs = () => {
             console.log('Received end response:', data.end);
             setFinalGoogleSheetsUrl(data.end);
             setWorkflowState('complete');
-            clearInterval(pollInterval);
+            cleanupPolling(); // Stop polling when we get the result
           }
         } else {
           console.log('Final polling response not ok:', response.status);
@@ -187,22 +243,33 @@ const Tabs = () => {
         }
       } catch (error) {
         console.error('Error polling for final response:', error);
+        handleError(`Fehler beim finalen Polling: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
       }
     }, 2000); // Poll every 2 seconds
 
+    setPollingInterval(pollInterval);
+
     // Stop polling after 15 minutes and show error
-    setTimeout(() => {
-      clearInterval(pollInterval);
+    const timeout = setTimeout(() => {
+      cleanupPolling();
       if (workflowState === 'finalLoading') {
-        toast({
-          title: "Timeout",
-          description: "Die Anfrage hat zu lange gedauert. Bitte versuche es erneut.",
-          variant: "destructive",
-        });
-        setWorkflowState('form');
+        handleError("Timeout: Die finale Anfrage hat zu lange gedauert. Bitte versuche es erneut.");
       }
     }, 900000);
+    
+    setTimeoutId(timeout);
   };
+
+  // Show error screen if there's an error
+  if (workflowState === 'error') {
+    return (
+      <ErrorScreen 
+        onReturnToMenu={handleBackToSelection}
+        onRetry={handleRetry}
+        errorMessage={errorMessage || undefined}
+      />
+    );
+  }
 
   // Show workflow selection if no workflow is selected
   if (!selectedWorkflow) {
@@ -248,6 +315,7 @@ const Tabs = () => {
                     resumeUrl={resumeUrl}
                     onSubmit={handleFormSubmit}
                     onValidationError={handleFormValidationError}
+                    onError={handleError}
                   />
                 )}
                 {workflowState === 'loading' && (
@@ -261,6 +329,7 @@ const Tabs = () => {
                     onContinue={handleContinue}
                     googleSheetsUrl={googleSheetsUrl}
                     resumeUrl={resumeUrl}
+                    onError={handleError}
                   />
                 )}
                 {workflowState === 'finalLoading' && (
@@ -284,6 +353,7 @@ const Tabs = () => {
                     resumeUrl={resumeUrl}
                     onSubmit={handleFormSubmit}
                     onValidationError={handleFormValidationError}
+                    onError={handleError}
                   />
                 )}
                 {workflowState === 'loading' && (

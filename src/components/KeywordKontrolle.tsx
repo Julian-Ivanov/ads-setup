@@ -8,9 +8,10 @@ interface KeywordKontrolleProps {
   onContinue: () => void;
   googleSheetsUrl: string;
   resumeUrl: string | null;
+  onError?: (error: string) => void;
 }
 
-const KeywordKontrolle = ({ onContinue, googleSheetsUrl, resumeUrl }: KeywordKontrolleProps) => {
+const KeywordKontrolle = ({ onContinue, googleSheetsUrl, resumeUrl, onError }: KeywordKontrolleProps) => {
   const [isContinuing, setIsContinuing] = useState(false);
   const { toast } = useToast();
 
@@ -54,11 +55,15 @@ const KeywordKontrolle = ({ onContinue, googleSheetsUrl, resumeUrl }: KeywordKon
       }
     } catch (error) {
       console.error('Error continuing workflow:', error);
-      toast({
-        title: "Fehler beim Fortsetzen",
-        description: "Es ist ein Fehler aufgetreten. Bitte versuche es erneut.",
-        variant: "destructive",
-      });
+      if (onError) {
+        onError(`Fehler beim Fortsetzen des Workflows: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+      } else {
+        toast({
+          title: "Fehler beim Fortsetzen",
+          description: "Es ist ein Fehler aufgetreten. Bitte versuche es erneut.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsContinuing(false);
     }
