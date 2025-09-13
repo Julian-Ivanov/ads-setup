@@ -15,9 +15,10 @@ interface SetupWithoutKeywordsFormProps {
   resumeUrl: string | null;
   onSubmit?: () => void;
   onValidationError?: () => void;
+  onError?: (error: string) => void;
 }
 
-const SetupWithoutKeywordsForm = ({ onBack, resumeUrl, onSubmit, onValidationError }: SetupWithoutKeywordsFormProps) => {
+const SetupWithoutKeywordsForm = ({ onBack, resumeUrl, onSubmit, onValidationError, onError }: SetupWithoutKeywordsFormProps) => {
   const [formData, setFormData] = useState({
     email: '',
     kundenname: '',
@@ -178,11 +179,15 @@ const SetupWithoutKeywordsForm = ({ onBack, resumeUrl, onSubmit, onValidationErr
 
     } catch (error) {
       console.error('Error submitting form:', error);
-      toast({
-        title: "Fehler beim Senden",
-        description: "Es ist ein Fehler aufgetreten. Bitte versuche es erneut.",
-        variant: "destructive",
-      });
+      if (onError) {
+        onError(`Fehler beim Senden des Formulars: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+      } else {
+        toast({
+          title: "Fehler beim Senden",
+          description: "Es ist ein Fehler aufgetreten. Bitte versuche es erneut.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }

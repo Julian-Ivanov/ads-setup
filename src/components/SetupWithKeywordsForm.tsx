@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Check, ChevronsUpDown, Upload, Send } from 'lucide-react';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Check, ChevronsUpDown, Upload, Send, ZoomIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface SetupWithKeywordsFormProps {
@@ -13,9 +14,10 @@ interface SetupWithKeywordsFormProps {
   resumeUrl: string | null;
   onSubmit?: () => void;
   onValidationError?: () => void;
+  onError?: (error: string) => void;
 }
 
-const SetupWithKeywordsForm = ({ onBack, resumeUrl, onSubmit, onValidationError }: SetupWithKeywordsFormProps) => {
+const SetupWithKeywordsForm = ({ onBack, resumeUrl, onSubmit, onValidationError, onError }: SetupWithKeywordsFormProps) => {
   const [formData, setFormData] = useState({
     email: '',
     kundenname: '',
@@ -172,11 +174,15 @@ const SetupWithKeywordsForm = ({ onBack, resumeUrl, onSubmit, onValidationError 
 
     } catch (error) {
       console.error('Error submitting form:', error);
-      toast({
-        title: "Fehler beim Senden",
-        description: "Es ist ein Fehler aufgetreten. Bitte versuche es erneut.",
-        variant: "destructive",
-      });
+      if (onError) {
+        onError(`Fehler beim Senden des Formulars: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+      } else {
+        toast({
+          title: "Fehler beim Senden",
+          description: "Es ist ein Fehler aufgetreten. Bitte versuche es erneut.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -257,6 +263,45 @@ const SetupWithKeywordsForm = ({ onBack, resumeUrl, onSubmit, onValidationError 
             )}
           </div>
           <p className="text-xs text-gray-500">Nur .xlsx Dateien sind erlaubt</p>
+        </div>
+
+        {/* Wichtiger Hinweis */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+            <h3 className="text-sm font-semibold text-amber-800">Wichtiger Hinweis</h3>
+          </div>
+          <p className="text-sm text-amber-700">
+            Damit der Workflow korrekt funktioniert, muss die Excel-Datei im richtigen Standard-Excel-Format vorliegen. 
+            Bitte verwende das unten gezeigte Format als Referenz:
+          </p>
+          <div className="bg-white border border-amber-200 rounded-md p-3">
+            <Dialog>
+              <DialogTrigger asChild>
+                <div className="relative cursor-pointer group">
+                  <img 
+                    src="/excel-format-reference.png" 
+                    alt="Excel Format Referenz" 
+                    className="w-full h-auto rounded border transition-transform group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 rounded border flex items-center justify-center">
+                    <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </div>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+                <img 
+                  src="/excel-format-reference.png" 
+                  alt="Excel Format Referenz - Vergrößert" 
+                  className="w-full h-auto rounded"
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+          <p className="text-xs text-amber-600">
+            Jede Spalte in der Excel-Datei muss eine Variable enthalten. Das Format sollte strukturiert sein 
+            mit klaren Spaltenüberschriften und entsprechenden Datenwerten in jeder Zeile.
+          </p>
         </div>
 
         {/* Kundenname */}
