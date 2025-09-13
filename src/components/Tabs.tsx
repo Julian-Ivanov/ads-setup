@@ -117,8 +117,17 @@ const Tabs = () => {
         });
 
         if (response.ok) {
-          const data = await response.json();
-          console.log('Polling response:', data);
+          let data;
+          try {
+            const responseText = await response.text();
+            console.log('Raw polling response:', responseText);
+            data = JSON.parse(responseText);
+            console.log('Parsed polling response:', data);
+          } catch (parseError) {
+            console.error('❌ Failed to parse polling response as JSON:', parseError);
+            console.error('Raw response:', responseText);
+            return;
+          }
           
           if (data.getFeedback) {
             console.log('✅ Received getFeedback:', data.getFeedback);
@@ -127,6 +136,7 @@ const Tabs = () => {
             clearInterval(pollInterval);
           } else {
             console.log('No getFeedback yet, continuing to poll...');
+            console.log('Available keys in response:', Object.keys(data));
           }
         } else {
           console.log('Polling response not ok:', response.status);
@@ -171,14 +181,26 @@ const Tabs = () => {
         });
 
         if (response.ok) {
-          const data = await response.json();
-          console.log('Final polling response:', data);
+          let data;
+          try {
+            const responseText = await response.text();
+            console.log('Raw final polling response:', responseText);
+            data = JSON.parse(responseText);
+            console.log('Parsed final polling response:', data);
+          } catch (parseError) {
+            console.error('❌ Failed to parse final polling response as JSON:', parseError);
+            console.error('Raw response:', responseText);
+            return;
+          }
           
           if (data.end) {
             console.log('Received end response:', data.end);
             setFinalGoogleSheetsUrl(data.end);
             setWorkflowState('complete');
             clearInterval(pollInterval);
+          } else {
+            console.log('No end response yet, continuing to poll...');
+            console.log('Available keys in final response:', Object.keys(data));
           }
         } else {
           console.log('Final polling response not ok:', response.status);

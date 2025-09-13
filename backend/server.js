@@ -34,9 +34,22 @@ app.get('/health', (req, res) => {
 app.post('/api/store-outline', (req, res) => {
   try {
     console.log('📥 Received request to /api/store-outline');
+    console.log('Request body type:', typeof req.body);
     console.log('Request body:', JSON.stringify(req.body, null, 2));
     
-    const { resumeUrl, outline, article, end, getFeedback } = req.body;
+    // Handle potential malformed JSON by parsing manually if needed
+    let bodyData = req.body;
+    if (typeof req.body === 'string') {
+      try {
+        bodyData = JSON.parse(req.body);
+      } catch (parseError) {
+        console.error('❌ Failed to parse request body as JSON:', parseError);
+        console.error('Raw body:', req.body);
+        return res.status(400).json({ error: 'Invalid JSON in request body' });
+      }
+    }
+    
+    const { resumeUrl, outline, article, end, getFeedback } = bodyData;
     
     if (!resumeUrl || (!outline && !article && !end && !getFeedback)) {
       console.log('❌ Missing required fields');
@@ -61,6 +74,7 @@ app.post('/api/store-outline', (req, res) => {
     res.json({ success: true, message: 'Content stored successfully' });
   } catch (error) {
     console.error('❌ Error storing content:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -87,10 +101,35 @@ app.post('/api/init-workflow', async (req, res) => {
     });
 
     if (response.ok) {
-      const data = await response.json();
-      console.log('Full response from n8n:', JSON.stringify(data, null, 2));
-      console.log('Workflow initialized, resume URL:', data.resumeURL);
-      res.json(data);
+      let data;
+      try {
+        const responseText = await response.text();
+        console.log('Raw response from n8n (init):', responseText);
+        
+        // Try to parse as JSON
+        data = JSON.parse(responseText);
+        console.log('Full response from n8n:', JSON.stringify(data, null, 2));
+        console.log('Workflow initialized, resume URL:', data.resumeURL);
+        
+        // Check if n8n returned content directly in the initial response
+        if (data.getFeedback) {
+          console.log('🔄 n8n returned getFeedback in initial response:', data.getFeedback);
+          outlineStorage.set(data.resumeURL, { type: 'getFeedback', content: data.getFeedback });
+        }
+        if (data.end) {
+          console.log('🏁 n8n returned end in initial response:', data.end);
+          outlineStorage.set(data.resumeURL, { type: 'end', content: data.end });
+        }
+        
+        res.json(data);
+      } catch (parseError) {
+        console.error('❌ Failed to parse n8n init response as JSON:', parseError);
+        console.error('Raw response:', responseText);
+        return res.status(500).json({ 
+          error: 'Ungültige Antwort von n8n',
+          details: 'Die Antwort konnte nicht als JSON geparst werden'
+        });
+      }
     } else {
       const errorText = await response.text();
       console.error('Failed to initialize workflow:', response.status, errorText);
@@ -130,8 +169,22 @@ app.post('/api/submit-form', upload.single('file'), async (req, res) => {
       });
 
       if (response.ok) {
-        const responseData = await response.json();
-        console.log('Feedback submitted successfully, n8n response:', responseData);
+        let responseData;
+        try {
+          const responseText = await response.text();
+          console.log('Raw response from n8n (feedback):', responseText);
+          
+          // Try to parse as JSON
+          responseData = JSON.parse(responseText);
+          console.log('Feedback submitted successfully, n8n response:', responseData);
+        } catch (parseError) {
+          console.error('❌ Failed to parse n8n feedback response as JSON:', parseError);
+          console.error('Raw response:', responseText);
+          return res.status(500).json({ 
+            error: 'Ungültige Antwort von n8n',
+            details: 'Die Antwort konnte nicht als JSON geparst werden'
+          });
+        }
         
         // Check if n8n returned content directly and store it
         if (responseData.outline) {
@@ -183,8 +236,28 @@ app.post('/api/submit-form', upload.single('file'), async (req, res) => {
       });
 
     if (response.ok) {
-      const responseData = await response.json();
-      console.log('✅ Form submitted successfully, n8n response:', JSON.stringify(responseData, null, 2));
+      let responseData;
+      try {
+        const responseText = await response.text();
+        console.log('Raw response from n8n:', responseText);
+        
+        // Try to parse as JSON
+        console.log('🔍 Attempting to parse JSON response...');
+        console.log('🔍 Response length:', responseText.length);
+        console.log('🔍 Response type:', typeof responseText);
+        console.log('🔍 First 100 chars:', responseText.substring(0, 100));
+        console.log('🔍 Last 100 chars:', responseText.substring(Math.max(0, responseText.length - 100)));
+        
+        responseData = JSON.parse(responseText);
+        console.log('✅ Form submitted successfully, n8n response:', JSON.stringify(responseData, null, 2));
+      } catch (parseError) {
+        console.error('❌ Failed to parse n8n response as JSON:', parseError);
+        console.error('Raw response:', responseText);
+        return res.status(500).json({ 
+          error: 'Ungültige Antwort von n8n',
+          details: 'Die Antwort konnte nicht als JSON geparst werden'
+        });
+      }
       
       // Check if n8n returned content directly and store it
       if (responseData.outline) {
@@ -198,9 +271,12 @@ app.post('/api/submit-form', upload.single('file'), async (req, res) => {
         outlineStorage.set(resumeUrl, { type: 'end', content: responseData.end });
       } else if (responseData.getFeedback) {
         console.log('🔄 Storing getFeedback from direct response:', responseData.getFeedback);
+        console.log('🔄 Resume URL for storage:', resumeUrl);
         outlineStorage.set(resumeUrl, { type: 'getFeedback', content: responseData.getFeedback });
+        console.log('🔄 getFeedback stored successfully in outlineStorage');
       } else {
         console.log('⚠️ n8n did not return any content in the response');
+        console.log('⚠️ Available keys in response:', Object.keys(responseData));
       }
       
       res.json(responseData);
@@ -256,9 +332,23 @@ app.post('/api/submit-feedback', async (req, res) => {
     });
 
     if (response.ok) {
-      const responseData = await response.json();
-      console.log('Feedback submitted successfully');
-      console.log('Response from n8n:', responseData);
+      let responseData;
+      try {
+        const responseText = await response.text();
+        console.log('Raw response from n8n (feedback form):', responseText);
+        
+        // Try to parse as JSON
+        responseData = JSON.parse(responseText);
+        console.log('Feedback submitted successfully');
+        console.log('Response from n8n:', responseData);
+      } catch (parseError) {
+        console.error('❌ Failed to parse n8n feedback form response as JSON:', parseError);
+        console.error('Raw response:', responseText);
+        return res.status(500).json({ 
+          error: 'Ungültige Antwort von n8n',
+          details: 'Die Antwort konnte nicht als JSON geparst werden'
+        });
+      }
       
       // Check if n8n returned content directly in the response
       if (responseData.outline) {
@@ -302,27 +392,32 @@ app.post('/api/check-outline', async (req, res) => {
       return res.status(400).json({ error: 'Resume URL is required' });
     }
 
-    console.log('Checking for content response from:', resumeUrl);
-    console.log('Current storage keys:', Array.from(outlineStorage.keys()));
+    console.log('🔍 Checking for content response from:', resumeUrl);
+    console.log('🔍 Current storage keys:', Array.from(outlineStorage.keys()));
+    console.log('🔍 Storage size:', outlineStorage.size);
 
     // Check if content is stored for this resume URL
     const storedContent = outlineStorage.get(resumeUrl);
     
     if (storedContent) {
-      console.log('Found content for resume URL:', resumeUrl, 'Type:', storedContent.type, 'Content:', storedContent.content);
+      console.log('✅ Found content for resume URL:', resumeUrl, 'Type:', storedContent.type, 'Content:', storedContent.content);
       // Remove the content from storage after retrieving it
       outlineStorage.delete(resumeUrl);
       
       if (storedContent.type === 'outline') {
+        console.log('📝 Returning outline response');
         res.json({ outline: storedContent.content });
       } else if (storedContent.type === 'article') {
+        console.log('📄 Returning article response');
         res.json({ article: storedContent.content });
       } else if (storedContent.type === 'end') {
-        console.log('Returning end response:', storedContent.content);
+        console.log('🏁 Returning end response:', storedContent.content);
         res.json({ end: storedContent.content });
       } else if (storedContent.type === 'getFeedback') {
-        console.log('Returning getFeedback:', storedContent.content);
-        res.json({ getFeedback: storedContent.content });
+        console.log('🔄 Returning getFeedback response:', storedContent.content);
+        const response = { getFeedback: storedContent.content };
+        console.log('🔄 Response object:', JSON.stringify(response, null, 2));
+        res.json(response);
       }
     } else {
       console.log('No content found for resume URL:', resumeUrl);
