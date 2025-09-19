@@ -60,7 +60,9 @@ app.post('/api/store-outline', (req, res) => {
     let bodyData = req.body;
     if (typeof req.body === 'string') {
       try {
-        bodyData = JSON.parse(req.body);
+        // Clean the JSON string before parsing
+        const cleanedBody = cleanJsonResponse(req.body);
+        bodyData = JSON.parse(cleanedBody);
       } catch (parseError) {
         console.error('❌ Failed to parse request body as JSON:', parseError);
         console.error('Raw body:', req.body);
@@ -196,8 +198,11 @@ app.post('/api/submit-form', upload.single('file'), async (req, res) => {
           const responseText = await response.text();
           console.log('Raw response from n8n (feedback):', responseText);
           
+          // Clean the response text before parsing
+          const cleanedText = cleanJsonResponse(responseText);
+          
           // Try to parse as JSON
-          responseData = JSON.parse(responseText);
+          responseData = JSON.parse(cleanedText);
           console.log('Feedback submitted successfully, n8n response:', responseData);
         } catch (parseError) {
           console.error('❌ Failed to parse n8n feedback response as JSON:', parseError);
