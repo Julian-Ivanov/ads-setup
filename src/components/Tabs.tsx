@@ -249,6 +249,15 @@ const Tabs = () => {
             setFinalGoogleSheetsUrl(data.end);
             setWorkflowState('complete');
             cleanupPolling(); // Stop polling when we get the result
+          } else if (selectedWorkflow === 'setupWithoutKeywords' && (data.getFeedback || data.outline || data.article)) {
+            // For the workflow without template we already have the Google Sheets link
+            // If n8n returns anything at this stage, consider it finished and show success
+            console.log('Final stage received some content (without explicit end). Completing using existing Google Sheets URL.');
+            if (googleSheetsUrl) {
+              setFinalGoogleSheetsUrl(googleSheetsUrl);
+            }
+            setWorkflowState('complete');
+            cleanupPolling();
           } else {
             console.log('No end response yet, continuing to poll...');
             console.log('Available keys in final response:', Object.keys(data));
