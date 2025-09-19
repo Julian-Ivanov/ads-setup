@@ -17,6 +17,25 @@ if (process.env.NODE_ENV === 'production') {
 // Simple in-memory storage for outlines (in production, use a database)
 const outlineStorage = new Map();
 
+// Helper function to clean JSON responses from n8n
+function cleanJsonResponse(responseText) {
+  let cleanedText = responseText.trim();
+  
+  // Remove BOM (Byte Order Mark) if present
+  if (cleanedText.length > 0 && cleanedText.charCodeAt(0) === 0xFEFF) {
+    cleanedText = cleanedText.slice(1);
+    console.log('🔧 Removed BOM from response');
+  }
+  
+  // Remove any non-printable characters that might interfere with JSON parsing
+  cleanedText = cleanedText.replace(/[\x00-\x1F\x7F]/g, '');
+  
+  console.log('🔧 Cleaned response text:', cleanedText);
+  console.log('🔧 Cleaned text length:', cleanedText.length);
+  
+  return cleanedText;
+}
+
 // Configure multer for file uploads
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -106,8 +125,11 @@ app.post('/api/init-workflow', async (req, res) => {
         const responseText = await response.text();
         console.log('Raw response from n8n (init):', responseText);
         
+        // Clean the response text before parsing
+        const cleanedText = cleanJsonResponse(responseText);
+        
         // Try to parse as JSON
-        data = JSON.parse(responseText);
+        data = JSON.parse(cleanedText);
         console.log('Full response from n8n:', JSON.stringify(data, null, 2));
         console.log('Workflow initialized, resume URL:', data.resumeURL);
         
@@ -248,7 +270,10 @@ app.post('/api/submit-form', upload.single('file'), async (req, res) => {
         console.log('🔍 First 100 chars:', responseText.substring(0, 100));
         console.log('🔍 Last 100 chars:', responseText.substring(Math.max(0, responseText.length - 100)));
         
-        responseData = JSON.parse(responseText);
+        // Clean the response text before parsing
+        const cleanedText = cleanJsonResponse(responseText);
+        
+        responseData = JSON.parse(cleanedText);
         console.log('✅ Form submitted successfully, n8n response:', JSON.stringify(responseData, null, 2));
       } catch (parseError) {
         console.error('❌ Failed to parse n8n response as JSON:', parseError);
@@ -337,8 +362,11 @@ app.post('/api/submit-feedback', async (req, res) => {
         const responseText = await response.text();
         console.log('Raw response from n8n (feedback form):', responseText);
         
+        // Clean the response text before parsing
+        const cleanedText = cleanJsonResponse(responseText);
+        
         // Try to parse as JSON
-        responseData = JSON.parse(responseText);
+        responseData = JSON.parse(cleanedText);
         console.log('Feedback submitted successfully');
         console.log('Response from n8n:', responseData);
       } catch (parseError) {
