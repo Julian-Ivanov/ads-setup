@@ -19,16 +19,34 @@ const outlineStorage = new Map();
 
 // Helper function to clean JSON responses from n8n
 function cleanJsonResponse(responseText) {
+  // Handle empty or null responses
+  if (!responseText || responseText.length === 0) {
+    console.log('⚠️ Empty response from n8n, returning empty object');
+    return '{}';
+  }
+  
   let cleanedText = responseText.trim();
   
+  // If still empty after trimming, return empty object
+  if (cleanedText.length === 0) {
+    console.log('⚠️ Empty response after trimming, returning empty object');
+    return '{}';
+  }
+  
   // Remove BOM (Byte Order Mark) if present
-  if (cleanedText.length > 0 && cleanedText.charCodeAt(0) === 0xFEFF) {
+  if (cleanedText.charCodeAt(0) === 0xFEFF) {
     cleanedText = cleanedText.slice(1);
     console.log('🔧 Removed BOM from response');
   }
   
   // Remove any non-printable characters that might interfere with JSON parsing
   cleanedText = cleanedText.replace(/[\x00-\x1F\x7F]/g, '');
+  
+  // If response is still empty after cleaning, return empty object
+  if (cleanedText.length === 0) {
+    console.log('⚠️ Empty response after cleaning, returning empty object');
+    return '{}';
+  }
   
   console.log('🔧 Cleaned response text:', cleanedText);
   console.log('🔧 Cleaned text length:', cleanedText.length);
@@ -226,13 +244,16 @@ app.post('/api/submit-form', upload.single('file'), async (req, res) => {
         } else if (responseData.getFeedback) {
           console.log('Storing getFeedback from direct response:', responseData.getFeedback);
           outlineStorage.set(resumeUrl, { type: 'getFeedback', content: responseData.getFeedback });
+        } else {
+          console.log('ℹ️ n8n returned empty response (this is normal if workflow is still processing)');
         }
         
         res.json(responseData);
       } else {
         const errorText = await response.text();
         console.error('Failed to submit feedback:', response.status, errorText);
-        res.status(response.status).json({ error: 'Failed to submit feedback' });
+        const errorMessage = errorText.trim() ? errorText : 'n8n returned empty response';
+        res.status(response.status).json({ error: errorMessage });
       }
     } else {
       // Regular form submission with FormData
@@ -305,15 +326,16 @@ app.post('/api/submit-form', upload.single('file'), async (req, res) => {
         outlineStorage.set(resumeUrl, { type: 'getFeedback', content: responseData.getFeedback });
         console.log('🔄 getFeedback stored successfully in outlineStorage');
       } else {
-        console.log('⚠️ n8n did not return any content in the response');
-        console.log('⚠️ Available keys in response:', Object.keys(responseData));
+        console.log('ℹ️ n8n returned empty response (this is normal if workflow is still processing)');
+        console.log('ℹ️ Available keys in response:', Object.keys(responseData));
       }
       
       res.json(responseData);
     } else {
       const errorText = await response.text();
       console.error('Failed to submit form:', response.status, errorText);
-      res.status(response.status).json({ error: 'Failed to submit form' });
+      const errorMessage = errorText.trim() ? errorText : 'n8n returned empty response';
+      res.status(response.status).json({ error: errorMessage });
     }
     }
   } catch (error) {
@@ -401,14 +423,15 @@ app.post('/api/submit-feedback', async (req, res) => {
         outlineStorage.set(resumeUrl, { type: 'getFeedback', content: responseData.getFeedback });
         console.log('Stored getFeedback in storage for resume URL:', resumeUrl);
       } else {
-        console.log('No content returned in feedback response, waiting for n8n to call /api/store-outline');
+        console.log('ℹ️ No content returned in feedback response (this is normal, waiting for n8n to call /api/store-outline)');
       }
       
       res.json(responseData);
     } else {
       const errorText = await response.text();
       console.error('Failed to submit feedback:', response.status, errorText);
-      res.status(response.status).json({ error: 'Failed to submit feedback' });
+      const errorMessage = errorText.trim() ? errorText : 'n8n returned empty response';
+      res.status(response.status).json({ error: errorMessage });
     }
   } catch (error) {
     console.error('Error submitting feedback:', error);

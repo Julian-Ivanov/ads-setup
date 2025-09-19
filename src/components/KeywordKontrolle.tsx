@@ -50,7 +50,17 @@ const KeywordKontrolle = ({ onContinue, googleSheetsUrl, resumeUrl, onError }: K
           description: "Das Ads-Setup wird fortgesetzt.",
         });
       } else {
-        const errorData = await response.json();
+        let errorData;
+        try {
+          const responseText = await response.text();
+          if (responseText.trim()) {
+            errorData = JSON.parse(responseText);
+          } else {
+            errorData = { error: 'Empty response' };
+          }
+        } catch (parseError) {
+          errorData = { error: 'Invalid JSON response' };
+        }
         throw new Error(`HTTP error! status: ${response.status} - ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {

@@ -169,7 +169,7 @@ const SetupWithKeywordsForm = ({ onBack, resumeUrl, onSubmit, onValidationError,
         setSelectedFile(null);
       } else {
         console.error('Response error:', responseData);
-        throw new Error(`HTTP error! status: ${response.status} - ${responseData.error || 'Unknown error'}`);
+        throw new Error(`HTTP error! status: ${response.status} - ${responseData?.error || 'Unknown error'}`);
       }
 
     } catch (error) {
