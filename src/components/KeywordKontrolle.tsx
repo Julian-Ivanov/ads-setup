@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, ExternalLink, CheckCircle } from 'lucide-react';
+import { API_BASE_URL } from '@/config/api';
 
 interface KeywordKontrolleProps {
   onContinue: () => void;
@@ -36,44 +37,27 @@ const KeywordKontrolle = ({ onContinue, googleSheetsUrl, resumeUrl, onError }: K
     
     try {
       // Send continue signal to resume URL
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/submit-form?resumeUrl=${encodeURIComponent(resumeUrl)}`, {
+      const response = await fetch(`${API_BASE_URL}/api/submit-form?resumeUrl=${encodeURIComponent(resumeUrl)}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ feedback: true }),
       });
-
-      if (response.ok) {
-        toast({
-          title: "Fortsetzung gesendet!",
-          description: "Das Ads-Setup wird fortgesetzt.",
-        });
+      // Egal wie die Antwort aussieht (auch 4xx/5xx/leer), wir bleiben im finalen Loading
+      // und warten aufs Polling-Ergebnis. Keine Fehleranzeige mehr hier.
+      if (!response.ok) {
+        const text = await response.text();
+        console.warn('Continue returned non-OK (ignored):', response.status, text);
       } else {
-        let errorData;
-        try {
-          const responseText = await response.text();
-          if (responseText.trim()) {
-            errorData = JSON.parse(responseText);
-          } else {
-            errorData = { error: 'Empty response' };
-          }
-        } catch (parseError) {
-          errorData = { error: 'Invalid JSON response' };
-        }
-        throw new Error(`HTTP error! status: ${response.status} - ${errorData.error || 'Unknown error'}`);
+        toast({
+          title: 'Fortsetzung gesendet!',
+          description: 'Das Ads-Setup wird fortgesetzt.',
+        });
       }
     } catch (error) {
-      console.error('Error continuing workflow:', error);
-      if (onError) {
-        onError(`Fehler beim Fortsetzen des Workflows: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
-      } else {
-        toast({
-          title: "Fehler beim Fortsetzen",
-          description: "Es ist ein Fehler aufgetreten. Bitte versuche es erneut.",
-          variant: "destructive",
-        });
-      }
+      // Netzwerk-/Fetchfehler ignorieren, wir warten weiter auf Polling
+      console.warn('Error continuing workflow (ignored, will keep polling):', error);
     } finally {
       setIsContinuing(false);
     }
