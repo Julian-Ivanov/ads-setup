@@ -1,14 +1,13 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Home } from 'lucide-react';
 
 interface ErrorScreenProps {
   onReturnToMenu: () => void;
-  onRetry?: () => void;
   errorMessage?: string;
 }
 
-const ErrorScreen = ({ onReturnToMenu, onRetry, errorMessage }: ErrorScreenProps) => {
+const ErrorScreen = ({ onReturnToMenu, errorMessage }: ErrorScreenProps) => {
   return (
     <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
@@ -36,26 +35,15 @@ const ErrorScreen = ({ onReturnToMenu, onRetry, errorMessage }: ErrorScreenProps
             </div>
           )}
           <p className="text-sm">
-            Du kannst den Workflow erneut starten oder zum Hauptmenü zurückkehren.
+            Du kannst zum Hauptmenü zurückkehren.
           </p>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Button */}
         <div className="space-y-3">
-          {onRetry && (
-            <Button
-              onClick={onRetry}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Workflow erneut starten
-            </Button>
-          )}
-          
           <Button
             onClick={onReturnToMenu}
-            variant="outline"
-            className="w-full"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
             <Home className="w-4 h-4 mr-2" />
             Zum Hauptmenü zurückkehren

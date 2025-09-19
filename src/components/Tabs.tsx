@@ -115,11 +115,6 @@ const Tabs = () => {
     setWorkflowState('error');
   };
 
-  const handleRetry = () => {
-    cleanupPolling(); // Ensure no polling is running
-    setWorkflowState('form');
-    setErrorMessage(null);
-  };
 
   const handleFormSubmit = () => {
     if (selectedWorkflow === 'setupWithKeywords') {
@@ -287,7 +282,6 @@ const Tabs = () => {
     return (
       <ErrorScreen 
         onReturnToMenu={handleBackToSelection}
-        onRetry={handleRetry}
         errorMessage={errorMessage || undefined}
       />
     );
